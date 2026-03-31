@@ -2,7 +2,8 @@ import SwiftUI
 
 /// Main content view with tab-based navigation.
 struct ContentView: View {
-    @StateObject private var multipeerManager = MultipeerManager(displayName: "CJJ_IPhone")
+//    @StateObject private var multipeerManager = MultipeerManager(displayName: "CJJ_IPhone")
+    @StateObject private var multipeerManager = MultipeerManager()
 
     var body: some View {
         TabView {

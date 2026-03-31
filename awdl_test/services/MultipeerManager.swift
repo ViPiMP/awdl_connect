@@ -35,7 +35,10 @@ class MultipeerManager: NSObject, ObservableObject {
     // MARK: - Initialization
 
     init(displayName: String? = nil) {
-        let name = displayName ?? UIDevice.current.name
+        var name = "CJJ_IPhone_Debug"
+        if UIDevice.current.name == "iPad" {
+            name = "CJJ_IPad_Debug"
+        }
         self.localDisplayName = name
         self.myPeerID = MCPeerID(displayName: name)
         self.objectWillChange = ObservableObjectPublisher()
@@ -308,7 +311,9 @@ extension MultipeerManager: MCNearbyServiceBrowserDelegate {
         DispatchQueue.main.async {
             if !self.discoveredPeers.contains(where: { $0.id == peerID }) {
                 self.discoveredPeers.append(device)
+                self.logger.info("Added peer: \(peerID.displayName)")
             }
+            self.logger.info("Peers found nums: \(self.discoveredPeers.count)")
         }
     }
 

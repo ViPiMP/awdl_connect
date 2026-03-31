@@ -10,9 +10,22 @@
 		9B55BD632F7B6C4A00BB8E7C /* awdl_test.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = awdl_test.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		9B11965E2F7BAFAA003658B2 /* Exceptions for "awdl_test" folder in "awdl_test" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"awdl-test-Info.plist",
+			);
+			target = 9B55BD622F7B6C4A00BB8E7C /* awdl_test */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		9B55BD652F7B6C4A00BB8E7C /* awdl_test */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				9B11965E2F7BAFAA003658B2 /* Exceptions for "awdl_test" folder in "awdl_test" target */,
+			);
 			path = awdl_test;
 			sourceTree = "<group>";
 		};
@@ -256,6 +269,7 @@
 				DEVELOPMENT_TEAM = 6Y8DN793XB;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "awdl-test-Info.plist";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "此应用需要访问本地网络以发现并连接附近的设备";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -289,6 +303,7 @@
 				DEVELOPMENT_TEAM = 6Y8DN793XB;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "awdl-test-Info.plist";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "此应用需要访问本地网络以发现并连接附近的设备";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
