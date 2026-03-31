@@ -6,8 +6,6 @@ import os.log
 /// Manager class that handles all MultipeerConnectivity operations.
 /// Uses AWDL interface for peer-to-peer connections without requiring a shared Wi-Fi network.
 class MultipeerManager: NSObject, ObservableObject {
-    var objectWillChange: ObservableObjectPublisher
-    
 
     // MARK: - Constants
 
@@ -41,7 +39,6 @@ class MultipeerManager: NSObject, ObservableObject {
         }
         self.localDisplayName = name
         self.myPeerID = MCPeerID(displayName: name)
-        self.objectWillChange = ObservableObjectPublisher()
 
         super.init()
 
