@@ -30,6 +30,11 @@ class MultipeerManager: NSObject, ObservableObject {
 
     private let logger = Logger(subsystem: "com.awdl.connect", category: "MultipeerManager")
 
+    /// Track whether we should auto-reconnect on disconnect
+    private var shouldAutoReconnect = true
+    /// Keep a reference to the last connected peer for auto-reconnect
+    private var lastConnectedPeerID: MCPeerID?
+
     // MARK: - Initialization
 
     init(displayName: String? = nil) {
@@ -59,7 +64,7 @@ class MultipeerManager: NSObject, ObservableObject {
         session = MCSession(
             peer: myPeerID,
             securityIdentity: nil,
-            encryptionPreference: .required
+            encryptionPreference: .optional
         )
         session.delegate = self
         logger.info("Session created for peer: \(self.myPeerID.displayName)")
@@ -151,9 +156,11 @@ class MultipeerManager: NSObject, ObservableObject {
 
     /// Disconnect from a specific peer or all peers.
     func disconnect() {
+        shouldAutoReconnect = false
         session.disconnect()
         DispatchQueue.main.async {
             self.connectedPeers.removeAll()
+            self.lastConnectedPeerID = nil
             // Reset discovered peers state
             self.discoveredPeers = self.discoveredPeers.map { peer in
                 var updated = peer
@@ -162,13 +169,16 @@ class MultipeerManager: NSObject, ObservableObject {
             }
         }
         logger.info("Disconnected from all peers")
+        shouldAutoReconnect = true
     }
 
     /// Stop all services.
     func stopAll() {
+        shouldAutoReconnect = false
         stopAdvertising()
         stopBrowsing()
         disconnect()
+        shouldAutoReconnect = true
     }
 
     // MARK: - Messaging
@@ -241,6 +251,35 @@ extension MultipeerManager: MCSessionDelegate {
         logger.info("Peer \(peerID.displayName) changed state to: \(stateStr)")
 
         updatePeerState(peerID, state: state)
+
+        switch state {
+        case .connected:
+            // Connection established — stop browsing and advertising to prevent
+            // discovery-layer churn (foundPeer/lostPeer cycles) from interfering
+            // with the stable session. This is what AirDrop does internally.
+            lastConnectedPeerID = peerID
+            logger.info("Connection established, stopping discovery services to stabilize connection")
+            DispatchQueue.main.async {
+                self.stopBrowsing()
+                self.stopAdvertising()
+            }
+
+        case .notConnected:
+            // Session-layer disconnect — attempt auto-reconnect by restarting services
+            if shouldAutoReconnect {
+                logger.info("Session disconnected from \(peerID.displayName), attempting auto-reconnect...")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                    guard let self = self else { return }
+                    if self.session.connectedPeers.isEmpty {
+                        self.startAdvertising()
+                        self.startBrowsing()
+                    }
+                }
+            }
+
+        default:
+            break
+        }
     }
 
     func session(_ session: MCSession, didReceive data: Data, fromPeer peerID: MCPeerID) {
@@ -299,6 +338,12 @@ extension MultipeerManager: MCNearbyServiceBrowserDelegate {
     func browser(_ browser: MCNearbyServiceBrowser, foundPeer peerID: MCPeerID, withDiscoveryInfo info: [String: String]?) {
         logger.info("Found peer: \(peerID.displayName)")
 
+        // If this peer is already connected via session, skip adding to discovered list
+        if session.connectedPeers.contains(peerID) {
+            logger.info("Peer \(peerID.displayName) already connected, skipping")
+            return
+        }
+
         let device = PeerDevice(
             id: peerID,
             displayName: peerID.displayName,
@@ -311,6 +356,14 @@ extension MultipeerManager: MCNearbyServiceBrowserDelegate {
                 self.logger.info("Added peer: \(peerID.displayName)")
             }
             self.logger.info("Peers found nums: \(self.discoveredPeers.count)")
+
+            // Auto-reconnect: if this is the last connected peer, re-invite automatically
+            if peerID == self.lastConnectedPeerID {
+                self.logger.info("Re-discovered previously connected peer, auto-inviting...")
+                if let peer = self.discoveredPeers.first(where: { $0.id == peerID }) {
+                    self.invitePeer(peer)
+                }
+            }
         }
     }
 
@@ -318,8 +371,17 @@ extension MultipeerManager: MCNearbyServiceBrowserDelegate {
         logger.info("Lost peer: \(peerID.displayName)")
 
         DispatchQueue.main.async {
-            self.discoveredPeers.removeAll { $0.id == peerID }
-            self.connectedPeers.removeAll { $0.id == peerID }
+            // Only remove from discovered peers list.
+            // Do NOT remove from connectedPeers here — lostPeer is a discovery-layer event,
+            // not a session-layer event. The MCSession connection may still be alive.
+            // AWDL discovery is intermittent; peers may temporarily disappear from
+            // the discovery layer while the session remains connected.
+            let isCurrentlyConnected = self.session.connectedPeers.contains(peerID)
+            if !isCurrentlyConnected {
+                self.discoveredPeers.removeAll { $0.id == peerID }
+            } else {
+                self.logger.info("Peer \(peerID.displayName) lost from discovery but session still connected — keeping peer")
+            }
         }
     }
 
