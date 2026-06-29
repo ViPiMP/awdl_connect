@@ -5,30 +5,39 @@ on:
 
 jobs:
   build:
-    runs-on: macos-14
+    runs-on: macos-latest
 
     steps:
     - name: 📥 Checkout Repository
       uses: actions/checkout@v4
 
-    - name: 🛠️ Setup Xcode
-      run: sudo xcode-select -switch /Applications/Xcode.app/Contents/Developer
+    - name: 🛠️ Setup newest Xcode
+      run: |
+        # Scannt das System nach der höchsten Xcode-Version (verhindert Format 77 Fehler)
+        LATEST_XCODE=$(ls -d /Applications/Xcode_*.app | sort -V | tail -n 1)
+        echo "Wechsle zu Compiler: $LATEST_XCODE"
+        sudo xcode-select -switch "$LATEST_XCODE/Contents/Developer"
 
     - name: 🏗️ Build App (ohne Code Signing)
       run: |
-        # Projektname und Scheme auf Awdl_test aktualisiert
+        # Sucht die .xcodeproj-Datei dynamisch, um Groß-/Kleinschreibungs-Fehler abzufangen
+        PROJECT_FILE=$(ls -d *.xcodeproj | head -n 1)
+        
+        # Überschreibt das iOS 18.6 Target und killt die fremde Team-ID des Entwicklers
         xcodebuild clean build \
-          -project "Awdl_test.xcodeproj" \
-          -scheme "Awdl_test" \
+          -project "$PROJECT_FILE" \
+          -scheme "awdl_test" \
           -destination 'generic/platform=iOS' \
+          IPHONEOS_DEPLOYMENT_TARGET="17.0" \
+          DEVELOPMENT_TEAM="" \
           CODE_SIGNING_ALLOWED="NO" \
           CODE_SIGNING_REQUIRED="NO" \
           CODE_SIGN_IDENTITY=""
 
-    - name: 📦 Package to .IPA (für Sideloading)
+    - name: 📦 Package to .IPA
       run: |
-        # Sucht jetzt nach der korrekten Awdl_test.app in den DerivedData
-        APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "Awdl_test.app" -type d | head -n 1)
+        # Sucht die kompilierte App dynamisch im abgeleiteten Daten-Ordner
+        APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "awdl_test.app" -type d | head -n 1)
         
         mkdir -p Payload
         cp -r "$APP_PATH" Payload/
