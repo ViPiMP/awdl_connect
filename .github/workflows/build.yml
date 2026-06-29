@@ -1,0 +1,43 @@
+name: Build Unsigned iOS App
+
+on:
+  workflow_dispatch: # Erlaubt dir, den Build jederzeit manuell über den "Actions" Tab in GitHub zu starten
+
+jobs:
+  build:
+    runs-on: macos-14 # Wir mieten uns kostenlos einen macOS Runner in der Cloud
+
+    steps:
+    - name: 📥 Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: 🛠️ Setup Xcode
+      run: sudo xcode-select -switch /Applications/Xcode.app/Contents/Developer
+
+    - name: 🏗️ Build App (ohne Code Signing)
+      run: |
+        # Wir gehen davon aus, dass das Projekt awdl_testApp heißt (laut UML Diagramm)
+        # Sollte die .xcodeproj Datei anders heißen, musst du den Namen hier anpassen!
+        xcodebuild clean build \
+          -project "awdl_testApp.xcodeproj" \
+          -scheme "awdl_testApp" \
+          -destination 'generic/platform=iOS' \
+          CODE_SIGNING_ALLOWED="NO" \
+          CODE_SIGNING_REQUIRED="NO" \
+          CODE_SIGN_IDENTITY=""
+
+    - name: 📦 Package to .IPA (für Sideloading)
+      run: |
+        # Wir suchen die fertig kompilierte .app Datei in den temporären Xcode-Ordnern
+        APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "awdl_testApp.app" -type d | head -n 1)
+        
+        # Eine IPA ist eigentlich nur eine ZIP-Datei mit einem Ordner namens "Payload"
+        mkdir -p Payload
+        cp -r "$APP_PATH" Payload/
+        zip -r awdl_connect_unsigned.ipa Payload
+
+    - name: 🚀 Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: awdl_connect_app
+        path: awdl_connect_unsigned.ipa
